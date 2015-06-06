@@ -192,11 +192,8 @@ object Source extends SourceApply {
    * Elements are pulled out of the iterator in accordance with the demand coming
    * from the downstream transformation steps.
    */
-  def apply[T](f: () ⇒ Iterator[T]): Source[T, Unit] = {
-    apply(new immutable.Iterable[T] {
-      override def iterator: Iterator[T] = f()
-    })
-  }
+  def apply[T](f: () ⇒ Iterator[T]): Source[T, Unit] =
+    apply(new immutable.Iterable[T] { override def iterator: Iterator[T] = f() })
 
   /**
    * A graph with the shape of a source logically is a source, this method makes
@@ -214,9 +211,8 @@ object Source extends SourceApply {
    * stream will see an individual flow of elements (always starting from the
    * beginning) regardless of when they subscribed.
    */
-  def apply[T](iterable: immutable.Iterable[T]): Source[T, Unit] = {
-    Source.single(()).mapConcat((_: Unit) ⇒ iterable).withAttributes(DefaultAttributes.iterableSource)
-  }
+  def apply[T](iterable: immutable.Iterable[T]): Source[T, Unit] =
+    Source.single(iterable).mapConcat(identity).withAttributes(DefaultAttributes.iterableSource)
 
   /**
    * Start a new `Source` from the given `Future`. The stream will consist of
@@ -242,13 +238,16 @@ object Source extends SourceApply {
    * Every connected `Sink` of this stream will see an individual stream consisting of one element.
    */
   def single[T](element: T): Source[T, Unit] =
-    apply(SynchronousIterablePublisher(List(element), "SingleSource")).withAttributes(DefaultAttributes.singleSource) // FIXME optimize
+    apply(SingleElementPublisher(element, "SingleSource")).withAttributes(DefaultAttributes.singleSource)
 
   /**
    * Create a `Source` that will continually emit the given element.
    */
   def repeat[T](element: T): Source[T, Unit] =
-    apply(() ⇒ Iterator.continually(element)).withAttributes(DefaultAttributes.repeat) // FIXME optimize
+    apply(new immutable.Iterable[T] {
+      override val iterator: Iterator[T] = Iterator.continually(element)
+      override def toString: String = "Iterable.continually(" + element + ")"
+    }).withAttributes(DefaultAttributes.repeat)
 
   /**
    * A `Source` with no elements, i.e. an empty stream that is completed immediately for every connected `Sink`.
