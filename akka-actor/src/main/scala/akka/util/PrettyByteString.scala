@@ -21,10 +21,9 @@ private[akka] object PrettyByteString {
       if (b >= 0x20 && b < 0x7f) b.toChar
       else '.'
 
-    def formatLine(bs: ByteString): String = {
-      val data = bs.toSeq
-      val hex = data.map(asHex).mkString(" ")
-      val ascii = data.map(asASCII).mkString
+    def formatLine(data: IndexedSeq[Byte]): String = {
+      val hex = data.map(asHex _).mkString(" ")
+      val ascii = data.map(asASCII _).mkString
       f"$indent%s  $hex%-48s | $ascii"
     }
     def formatBytes(bs: ByteString): String =

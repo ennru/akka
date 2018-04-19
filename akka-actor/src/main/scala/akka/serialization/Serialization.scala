@@ -326,7 +326,7 @@ class Serialization(val system: ExtendedActorSystem) extends Extension {
   private val serializers: Map[String, Serializer] = {
     val fromConfig = for ((k: String, v: String) ← settings.Serializers) yield k → serializerOf(v).get
     val result = fromConfig ++ serializerDetails.map(d ⇒ d.alias → d.serializer)
-    ensureOnlyAllowedSerializers(result.map { case (_, ser) ⇒ ser }(collection.breakOut))
+    ensureOnlyAllowedSerializers(result.map { case (_, ser) ⇒ ser }.toIterator)
     result
   }
 
@@ -345,7 +345,7 @@ class Serialization(val system: ExtendedActorSystem) extends Extension {
     }
 
     val result = sort(fromConfig ++ fromSettings)
-    ensureOnlyAllowedSerializers(result.map { case (_, ser) ⇒ ser }(collection.breakOut))
+    ensureOnlyAllowedSerializers(result.map { case (_, ser) ⇒ ser }.toIterator)
     result
   }
 
@@ -373,7 +373,7 @@ class Serialization(val system: ExtendedActorSystem) extends Extension {
         case x  ⇒ buf insert (x, ca)
       }
       buf
-    }).to[immutable.Seq]
+    }).to(immutable.Seq)
 
   /**
    * serializerMap is a Map whose keys is the class that is serializable and values is the serializer
@@ -386,7 +386,7 @@ class Serialization(val system: ExtendedActorSystem) extends Extension {
    * Maps from a Serializer Identity (Int) to a Serializer instance (optimization)
    */
   val serializerByIdentity: Map[Int, Serializer] =
-    Map(NullSerializer.identifier → NullSerializer) ++ serializers map { case (_, v) ⇒ (v.identifier, v) }
+    Map(NullSerializer.identifier → NullSerializer) ++ serializers.map { case (_, v) ⇒ (v.identifier, v) }
 
   /**
    * Serializers with id 0 - 1023 are stored in an array for quick allocation free access

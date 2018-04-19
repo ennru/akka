@@ -6,7 +6,6 @@ package akka.actor
 
 import java.util.concurrent.atomic.AtomicReference
 
-import akka.annotation.InternalApi
 import akka.routing._
 import akka.util.WildcardIndex
 import com.typesafe.config._
@@ -141,11 +140,11 @@ private[akka] class Deployer(val settings: ActorSystem.Settings, val dynamicAcce
       case (key, value: String) ⇒ (key → value)
     }.toMap
 
-  config.root.asScala flatMap {
+  config.root.asScala.iterator flatMap {
     case ("default", _)             ⇒ None
     case (key, value: ConfigObject) ⇒ parseConfig(key, value.toConfig)
     case _                          ⇒ None
-  } foreach deploy
+  } foreach deploy _
 
   def lookup(path: ActorPath): Option[Deploy] = lookup(path.elements.drop(1))
 

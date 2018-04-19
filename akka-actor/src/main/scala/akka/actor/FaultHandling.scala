@@ -233,7 +233,7 @@ object SupervisorStrategy extends SupervisorStrategyLowPriorityImplicits {
         case x  ⇒ buf insert (x, ca)
       }
       buf
-    }.to[immutable.IndexedSeq]
+    }.to(immutable.IndexedSeq)
 
   private[akka] def withinTimeRangeOption(withinTimeRange: Duration): Option[Duration] =
     if (withinTimeRange.isFinite && withinTimeRange >= Duration.Zero) Some(withinTimeRange) else None

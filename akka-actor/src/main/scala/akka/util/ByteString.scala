@@ -9,10 +9,9 @@ import java.nio.{ ByteBuffer, ByteOrder }
 import java.lang.{ Iterable ⇒ JIterable }
 
 import scala.annotation.{ tailrec, varargs }
-import scala.collection.IndexedSeqOptimized
 import scala.collection.mutable.{ Builder, WrappedArray }
 import scala.collection.immutable
-import scala.collection.immutable.{ IndexedSeq, VectorBuilder, VectorIterator }
+import scala.collection.immutable.{ IndexedSeq, VectorBuilder }
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 import java.nio.charset.{ Charset, StandardCharsets }
@@ -143,11 +142,11 @@ object ByteString {
   /** Java API */
   def createBuilder: ByteStringBuilder = new ByteStringBuilder
 
-  implicit val canBuildFrom: CanBuildFrom[TraversableOnce[Byte], Byte, ByteString] =
-    new CanBuildFrom[TraversableOnce[Byte], Byte, ByteString] {
-      def apply(ignore: TraversableOnce[Byte]): ByteStringBuilder = newBuilder
-      def apply(): ByteStringBuilder = newBuilder
-    }
+  //  implicit val canBuildFrom: scala.collection.BuildFrom[TraversableOnce[Byte], Byte, ByteString] =
+  //    new scala.collection.BuildFrom[TraversableOnce[Byte], Byte, ByteString] {
+  //      override def apply(ignore: TraversableOnce[Byte]): ByteStringBuilder = ByteString.newBuilder
+  //      def apply(): ByteStringBuilder = ByteString.newBuilder
+  //    }
 
   private[akka] object ByteString1C extends Companion {
     def fromString(s: String): ByteString1C = new ByteString1C(s.getBytes)
@@ -208,8 +207,7 @@ object ByteString {
       if (n <= 0) this
       else toByteString1.drop(n)
 
-    override def indexOf[B >: Byte](elem: B): Int = indexOf(elem, 0)
-    override def indexOf[B >: Byte](elem: B, from: Int): Int = {
+    override def indexOf[B >: Byte](elem: B, from: Int = 0): Int = {
       if (from >= length) -1
       else {
         var found = -1
@@ -365,8 +363,7 @@ object ByteString {
       }
     }
 
-    override def indexOf[B >: Byte](elem: B): Int = indexOf(elem, 0)
-    override def indexOf[B >: Byte](elem: B, from: Int): Int = {
+    override def indexOf[B >: Byte](elem: B, from: Int = 0): Int = {
       if (from >= length) -1
       else {
         var found = -1
@@ -586,8 +583,7 @@ object ByteString {
         new ByteStrings(bytestrings(fullDrops).drop1(remainingToDrop) +: bytestrings.drop(fullDrops + 1), length - n)
     }
 
-    override def indexOf[B >: Byte](elem: B): Int = indexOf(elem, 0)
-    override def indexOf[B >: Byte](elem: B, from: Int): Int = {
+    override def indexOf[B >: Byte](elem: B, from: Int = 0): Int = {
       if (from >= length) -1
       else {
         val byteStringsSize = bytestrings.size
@@ -655,14 +651,14 @@ object ByteString {
  *
  * TODO: Add performance characteristics
  */
-sealed abstract class ByteString extends IndexedSeq[Byte] with IndexedSeqOptimized[Byte, ByteString] {
+sealed abstract class ByteString extends IndexedSeq[Byte] with immutable.IndexedSeqOps[Byte, IndexedSeq, ByteString] {
   def apply(idx: Int): Byte
   private[akka] def byteStringCompanion: ByteString.Companion
   // override so that toString will also be `ByteString(...)` for the concrete subclasses
   // of ByteString which changed for Scala 2.12, see https://github.com/akka/akka/issues/21774
-  override final def stringPrefix: String = "ByteString"
+  override final def className: String = "ByteString"
 
-  override protected[this] def newBuilder: ByteStringBuilder = ByteString.newBuilder
+  //  override protected[this] def newBuilder: ByteStringBuilder = ByteString.newBuilder
 
   // *must* be overridden by derived classes. This construction is necessary
   // to specialize the return type, as the method is already implemented in
@@ -697,10 +693,10 @@ sealed abstract class ByteString extends IndexedSeq[Byte] with IndexedSeqOptimiz
 
   override def splitAt(n: Int): (ByteString, ByteString) = (take(n), drop(n))
 
-  override def indexWhere(p: Byte ⇒ Boolean): Int = iterator.indexWhere(p)
+  override def indexWhere(p: Byte ⇒ Boolean, from: Int = 0): Int = iterator.indexWhere(p, from)
 
   // optimized in subclasses
-  override def indexOf[B >: Byte](elem: B): Int = indexOf(elem, 0)
+  override def indexOf[B >: Byte](elem: B, from: Int = 0): Int = indexOf(elem, from)
 
   override def toString(): String = {
     val maxSize = 100
@@ -718,8 +714,10 @@ sealed abstract class ByteString extends IndexedSeq[Byte] with IndexedSeqOptimiz
   protected[ByteString] def toArray: Array[Byte] = toArray[Byte]
 
   override def toArray[B >: Byte](implicit arg0: ClassTag[B]): Array[B] = iterator.toArray
-  override def copyToArray[B >: Byte](xs: Array[B], start: Int, len: Int): Unit =
+  override def copyToArray[B >: Byte](xs: Array[B], start: Int, len: Int): xs.type = {
     iterator.copyToArray(xs, start, len)
+    xs
+  }
 
   override def foreach[@specialized U](f: Byte ⇒ U): Unit = iterator foreach f
 
@@ -805,6 +803,9 @@ sealed abstract class ByteString extends IndexedSeq[Byte] with IndexedSeqOptimiz
    */
   def decodeString(charset: Charset): String
 
+  // TODO re-implement specific
+  def map(f: Byte ⇒ Byte): ByteString = this
+
   /**
    * map method that will automatically cast Int back into Byte.
    */
@@ -835,7 +836,7 @@ object CompactByteString {
    */
   def apply[T](bytes: T*)(implicit num: Integral[T]): CompactByteString = {
     if (bytes.isEmpty) empty
-    else ByteString.ByteString1C(bytes.map(x ⇒ num.toInt(x).toByte)(collection.breakOut))
+    else ByteString.ByteString1C(bytes.iterator.map(x ⇒ num.toInt(x).toByte).toArray)
   }
 
   /**
@@ -960,7 +961,7 @@ final class ByteStringBuilder extends Builder[Byte, ByteString] {
     }
   }
 
-  def +=(elem: Byte): this.type = {
+  def addOne(elem: Byte): this.type = {
     ensureTempSize(_tempLength + 1)
     _temp(_tempLength) = elem
     _tempLength += 1
@@ -968,7 +969,7 @@ final class ByteStringBuilder extends Builder[Byte, ByteString] {
     this
   }
 
-  override def ++=(xs: TraversableOnce[Byte]): this.type = {
+  override def addAll(xs: TraversableOnce[Byte]): this.type = {
     xs match {
       case b: ByteString if b.isEmpty ⇒
       // do nothing
@@ -993,9 +994,9 @@ final class ByteStringBuilder extends Builder[Byte, ByteString] {
         clearTemp()
         _builder += ByteString.ByteString1(copied)
         _length += seq.length
-      case seq: collection.IndexedSeq[_] ⇒
-        ensureTempSize(_tempLength + xs.size)
-        xs.copyToArray(_temp, _tempLength)
+      case seq: collection.IndexedSeq[Byte] ⇒
+        ensureTempSize(_tempLength + seq.size)
+        seq.copyToArray(_temp, _tempLength)
         _tempLength += seq.length
         _length += seq.length
       case _ ⇒

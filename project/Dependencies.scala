@@ -71,6 +71,9 @@ object Dependencies {
     // For Java 8 Conversions
     val java8Compat = Def.setting { "org.scala-lang.modules" % "scala-java8-compat_2.13.0-M3" % java8CompatVersion.value } // Scala License
 
+    // For Scala 2.13 collection compatibility
+    val scalaCollectionCompat = Def.setting { "org.scala-lang" %% "scala-collection-compat" % "0.1-SNAPSHOT" } // Scala License
+
     val aeronDriver = "io.aeron" % "aeron-driver" % aeronVersion // ApacheV2
     val aeronClient = "io.aeron" % "aeron-client" % aeronVersion // ApacheV2
     object Docs {
@@ -126,7 +129,7 @@ object Dependencies {
   // TODO check if `l ++=` everywhere expensive?
   val l = libraryDependencies
 
-  val actor = l ++= Seq(config, java8Compat.value)
+  val actor = l ++= Seq(config, java8Compat.value, scalaCollectionCompat.value)
 
   val testkit = l ++= Seq(Test.junit, Test.scalatest.value) ++ Test.metricsAll
 

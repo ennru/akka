@@ -174,12 +174,12 @@ object ActorSelection {
    * intention is to send messages frequently.
    */
   def apply(anchorRef: ActorRef, elements: Iterable[String]): ActorSelection = {
-    val compiled: immutable.IndexedSeq[SelectionPathElement] = elements.collect({
+    val compiled: immutable.IndexedSeq[SelectionPathElement] = elements.iterator.collect({
       case x if !x.isEmpty ⇒
         if ((x.indexOf('?') != -1) || (x.indexOf('*') != -1)) SelectChildPattern(x)
         else if (x == "..") SelectParent
         else SelectChildName(x)
-    })(scala.collection.breakOut)
+    }).toIndexedSeq
     new ActorSelection with ScalaActorSelection {
       override val anchor = anchorRef
       override val path = compiled
